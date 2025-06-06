@@ -11,6 +11,10 @@ import type {
   TypingIndicator,
   FileAttachment,
 } from "../types/message";
+import { enableMapSet } from "immer";
+
+// Enable MapSet plugin
+enableMapSet();
 
 interface ChatState {
   // Current user

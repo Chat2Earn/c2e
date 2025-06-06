@@ -1,12 +1,12 @@
-import { io, Socket } from 'socket.io-client';
-import { nanoid } from 'nanoid';
-import { encryptMessage, decryptMessage } from './crypto';
-import { PublicKey } from '@solana/web3.js';
-import type { Message, TypingIndicator, Peer } from '../types/message';
+import { io, Socket } from "socket.io-client";
+import { nanoid } from "nanoid";
+import { encryptMessage, decryptMessage } from "./crypto";
+import { PublicKey } from "@solana/web3.js";
+import type { Message, TypingIndicator, Peer } from "../types/message";
 
 export interface RealtimeMessage {
   id: string;
-  type: 'message' | 'typing' | 'presence' | 'delivery_receipt' | 'read_receipt';
+  type: "message" | "typing" | "presence" | "delivery_receipt" | "read_receipt";
   from: string;
   to: string;
   data: any;
@@ -16,30 +16,45 @@ export interface RealtimeMessage {
 
 export interface PresenceData {
   userId: string;
-  status: 'online' | 'away' | 'busy' | 'offline';
+  status: "online" | "away" | "busy" | "offline";
   lastSeen: number;
   device?: string;
 }
 
 export class RealtimeService {
-  private socket: Socket | null = null;
+  private socket: Socket;
   private currentUser: string | null = null;
   private messageQueue: RealtimeMessage[] = [];
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private heartbeatInterval: NodeJS.Timeout | null = null;
-  
+
   // Event handlers
   private onMessageReceived: ((message: Message) => void) | null = null;
   private onTypingUpdate: ((indicator: TypingIndicator) => void) | null = null;
   private onPresenceUpdate: ((presence: PresenceData) => void) | null = null;
-  private onDeliveryReceipt: ((messageId: string, timestamp: number) => void) | null = null;
-  private onReadReceipt: ((messageId: string, timestamp: number) => void) | null = null;
-  private onConnectionStatusChange: ((status: 'connected' | 'disconnected' | 'reconnecting') => void) | null = null;
+  private onDeliveryReceipt:
+    | ((messageId: string, timestamp: number) => void)
+    | null = null;
+  private onReadReceipt:
+    | ((messageId: string, timestamp: number) => void)
+    | null = null;
+  private onConnectionStatusChange:
+    | ((status: "connected" | "disconnected" | "reconnecting") => void)
+    | null = null;
 
   constructor() {
     // Initialize with mock WebSocket for demo
-    this.initializeMockConnection();
+    // this.initializeMockConnection();
+
+    this.socket = io(
+      import.meta.env.VITE_WEBSOCKET_URL || "ws://localhost:3001",
+      {
+        autoConnect: false,
+        withCredentials: true,
+        path: import.meta.env.PROD ? "/api/socket.io/" : "/socket.io/",
+      }
+    );
   }
 
   /**
@@ -48,7 +63,7 @@ export class RealtimeService {
   private initializeMockConnection() {
     // Simulate connection events
     setTimeout(() => {
-      this.onConnectionStatusChange?.('connected');
+      this.onConnectionStatusChange?.("connected");
       this.startHeartbeat();
     }, 1000);
 
@@ -61,25 +76,27 @@ export class RealtimeService {
    */
   async connect(userId: string, authToken?: string): Promise<void> {
     this.currentUser = userId;
-    
-    try {
-      // In production, this would connect to actual WebSocket server
-      // this.socket = io(process.env.VITE_WEBSOCKET_URL || 'ws://localhost:3001', {
-      //   auth: { token: authToken, userId },
-      //   transports: ['websocket'],
-      //   timeout: 10000,
-      // });
 
+    try {
+      this.socket.auth = { token: userId };
+      this.socket.connect();
+      // In production, this would connect to actual WebSocket server
+      // this.socket = io(
+      //   import.meta.env.VITE_WEBSOCKET_URL || "ws://localhost:3001",
+      //   {
+      //     auth: { token: authToken, userId },
+      //     transports: ["websocket"],
+      //     timeout: 10000,
+      //   }
+      // );
       // Mock connection for demo
-      this.onConnectionStatusChange?.('connected');
-      this.startHeartbeat();
-      
+      // this.onConnectionStatusChange?.("connected");
+      // this.startHeartbeat();
       // Process queued messages
-      this.processMessageQueue();
-      
+      // this.processMessageQueue();
     } catch (error) {
-      console.error('Failed to connect to realtime service:', error);
-      this.onConnectionStatusChange?.('disconnected');
+      console.error("Failed to connect to realtime service:", error);
+      this.onConnectionStatusChange?.("disconnected");
       this.scheduleReconnect();
     }
   }
@@ -90,15 +107,15 @@ export class RealtimeService {
   disconnect(): void {
     if (this.socket) {
       this.socket.disconnect();
-      this.socket = null;
+      // this.socket = null;
     }
-    
+
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
     }
-    
-    this.onConnectionStatusChange?.('disconnected');
+
+    this.onConnectionStatusChange?.("disconnected");
   }
 
   /**
@@ -108,11 +125,11 @@ export class RealtimeService {
     content: string,
     recipientPublicKey: string,
     senderPrivateKey: Uint8Array,
-    messageType: 'text' | 'file' | 'image' = 'text',
+    messageType: "text" | "file" | "image" = "text",
     fileData?: { url: string; name: string; size: number; type: string }
   ): Promise<string> {
     const messageId = nanoid();
-    
+
     try {
       // Encrypt message content
       const { encrypted, nonce } = await encryptMessage(
@@ -123,7 +140,7 @@ export class RealtimeService {
 
       const realtimeMessage: RealtimeMessage = {
         id: messageId,
-        type: 'message',
+        type: "message",
         from: this.currentUser!,
         to: recipientPublicKey,
         data: {
@@ -141,12 +158,13 @@ export class RealtimeService {
       if (this.isConnected()) {
         this.sendRealtimeMessage(realtimeMessage);
       } else {
+        console.log("queue");
         this.messageQueue.push(realtimeMessage);
       }
 
       return messageId;
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error("Failed to send message:", error);
       throw error;
     }
   }
@@ -159,7 +177,7 @@ export class RealtimeService {
 
     const message: RealtimeMessage = {
       id: nanoid(),
-      type: 'typing',
+      type: "typing",
       from: this.currentUser!,
       to: recipientPublicKey,
       data: { isTyping },
@@ -172,15 +190,16 @@ export class RealtimeService {
   /**
    * Update presence status
    */
-  updatePresence(status: 'online' | 'away' | 'busy' | 'offline'): void {
+  updatePresence(status: "online" | "away" | "busy" | "offline"): void {
     if (!this.isConnected()) return;
 
     const message: RealtimeMessage = {
       id: nanoid(),
-      type: 'presence',
+      type: "presence",
       from: this.currentUser!,
-      to: 'broadcast',
+      to: "broadcast",
       data: {
+        userId: this.currentUser,
         status,
         lastSeen: Date.now(),
         device: navigator.userAgent,
@@ -199,7 +218,7 @@ export class RealtimeService {
 
     const message: RealtimeMessage = {
       id: nanoid(),
-      type: 'delivery_receipt',
+      type: "delivery_receipt",
       from: this.currentUser!,
       to: senderPublicKey,
       data: { messageId, timestamp: Date.now() },
@@ -217,7 +236,7 @@ export class RealtimeService {
 
     const message: RealtimeMessage = {
       id: nanoid(),
-      type: 'read_receipt',
+      type: "read_receipt",
       from: this.currentUser!,
       to: senderPublicKey,
       data: { messageId, timestamp: Date.now() },
@@ -232,6 +251,23 @@ export class RealtimeService {
    */
   onMessage(handler: (message: Message) => void): void {
     this.onMessageReceived = handler;
+    this.socket.on("message", async (data) => {
+      console.log("receive message:", data);
+      // const realtimeMessage = data.data
+      // const content = await decryptMessage(realtimeMessage.content,realtimeMessage.nonce)
+      // const mockMessage: Message = {
+      //   id: nanoid(),
+      //   sender: realtimeMessage.,
+      //   senderUsername: "@demo_user",
+      //   recipient: this.currentUser,
+      //   content: "Hello! This is a simulated real-time message.",
+      //   nonce: "mock_nonce",
+      //   timestamp: Date.now(),
+      //   status: "delivered",
+      //   messageType: "text",
+      // };
+      // this.onMessageReceived?.(mockMessage);
+    });
   }
 
   onTyping(handler: (indicator: TypingIndicator) => void): void {
@@ -240,6 +276,9 @@ export class RealtimeService {
 
   onPresence(handler: (presence: PresenceData) => void): void {
     this.onPresenceUpdate = handler;
+    this.socket.on("presence", (data) => {
+      this.onPresenceUpdate?.(data.data);
+    });
   }
 
   onDelivery(handler: (messageId: string, timestamp: number) => void): void {
@@ -250,23 +289,32 @@ export class RealtimeService {
     this.onReadReceipt = handler;
   }
 
-  onConnectionStatus(handler: (status: 'connected' | 'disconnected' | 'reconnecting') => void): void {
+  onConnectionStatus(
+    handler: (status: "connected" | "disconnected" | "reconnecting") => void
+  ): void {
     this.onConnectionStatusChange = handler;
+    this.socket.on("connect", async () => {
+      if (this.isConnected()) {
+        this.updatePresence("online");
+        this.onConnectionStatusChange?.("connected");
+      }
+    });
   }
 
   /**
    * Utility methods
    */
   private isConnected(): boolean {
-    return this.socket?.connected || true; // Mock as always connected for demo
+    // return this.socket?.connected || true; // Mock as always connected for demo
+    return this.socket?.connected || false;
   }
 
   private sendRealtimeMessage(message: RealtimeMessage): void {
     // In production, send via WebSocket
-    // this.socket?.emit('message', message);
-    
+    this.socket?.emit("message", message);
+
     // Mock implementation - simulate message delivery
-    console.log('Sending realtime message:', message);
+    // console.log("Sending realtime message:", message);
   }
 
   private processMessageQueue(): void {
@@ -282,7 +330,7 @@ export class RealtimeService {
     this.heartbeatInterval = setInterval(() => {
       if (this.isConnected()) {
         // Send heartbeat
-        this.updatePresence('online');
+        this.updatePresence("online");
       }
     }, 30000); // Every 30 seconds
   }
@@ -291,9 +339,9 @@ export class RealtimeService {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
       const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-      
+
       setTimeout(() => {
-        this.onConnectionStatusChange?.('reconnecting');
+        this.onConnectionStatusChange?.("reconnecting");
         this.connect(this.currentUser!);
       }, delay);
     }
@@ -305,16 +353,16 @@ export class RealtimeService {
       if (Math.random() > 0.95 && this.currentUser) {
         const mockMessage: Message = {
           id: nanoid(),
-          sender: 'demo_user_' + Math.random().toString(36).substr(2, 5),
-          senderUsername: '@demo_user',
+          sender: "demo_user_" + Math.random().toString(36).substr(2, 5),
+          senderUsername: "@demo_user",
           recipient: this.currentUser,
-          content: 'Hello! This is a simulated real-time message.',
-          nonce: 'mock_nonce',
+          content: "Hello! This is a simulated real-time message.",
+          nonce: "mock_nonce",
           timestamp: Date.now(),
-          status: 'delivered',
-          messageType: 'text',
+          status: "delivered",
+          messageType: "text",
         };
-        
+
         this.onMessageReceived?.(mockMessage);
       }
     }, 10000); // Every 10 seconds

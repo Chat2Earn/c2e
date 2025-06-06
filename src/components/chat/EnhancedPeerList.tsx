@@ -1,23 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Search, 
-  Users, 
-  Plus, 
-  AtSign, 
-  Wallet, 
-  Crown, 
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Search,
+  Users,
+  Plus,
+  AtSign,
+  Wallet,
+  Crown,
   MessageCircle,
   UserPlus,
   Hash,
   Globe,
   Lock,
-  Zap
-} from 'lucide-react';
-import { useConnection } from '@solana/wallet-adapter-react';
-import { getSolanaNameService, formatDisplayName } from '../../lib/solana-name-service';
-import { getAddressActivity } from '../../lib/peers';
-import type { Peer } from '../../types/message';
+  Zap,
+} from "lucide-react";
+import { useConnection } from "@solana/wallet-adapter-react";
+import {
+  getSolanaNameService,
+  formatDisplayName,
+} from "../../lib/solana-name-service";
+import { getAddressActivity } from "../../lib/peers";
+import type { Peer } from "../../types/message";
 
 interface Props {
   peers: Peer[];
@@ -31,9 +34,9 @@ export const EnhancedPeerList: React.FC<Props> = ({
   onStartGroupChat,
 }) => {
   const { connection } = useConnection();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [filteredPeers, setFilteredPeers] = useState<Peer[]>([]);
-  const [newPeerAddress, setNewPeerAddress] = useState('');
+  const [newPeerAddress, setNewPeerAddress] = useState("");
   const [isAddingPeer, setIsAddingPeer] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -45,18 +48,19 @@ export const EnhancedPeerList: React.FC<Props> = ({
     }
 
     const query = searchQuery.toLowerCase();
-    const filtered = peers.filter(peer => 
-      peer.username?.toLowerCase().includes(query) ||
-      peer.nickname?.toLowerCase().includes(query) ||
-      peer.publicKey.toLowerCase().includes(query)
+    const filtered = peers.filter(
+      (peer) =>
+        peer.username?.toLowerCase().includes(query) ||
+        peer.nickname?.toLowerCase().includes(query) ||
+        peer.publicKey.toLowerCase().includes(query)
     );
-    
+
     setFilteredPeers(filtered);
   }, [peers, searchQuery]);
 
   const handleAddPeer = async () => {
     if (!newPeerAddress.trim()) return;
-    
+
     setIsAddingPeer(true);
     try {
       const sns = getSolanaNameService(connection);
@@ -64,14 +68,14 @@ export const EnhancedPeerList: React.FC<Props> = ({
       let username: string | undefined;
 
       // Check if it's a username (starts with @)
-      if (newPeerAddress.startsWith('@')) {
+      if (newPeerAddress.startsWith("@")) {
         const usernameOnly = newPeerAddress.slice(1);
         const resolved = await sns.resolveUsername(usernameOnly);
         if (resolved) {
           resolvedAddress = resolved;
           username = `@${usernameOnly}`;
         } else {
-          throw new Error('Username not found');
+          throw new Error("Username not found");
         }
       } else {
         // Try reverse lookup for existing username
@@ -82,31 +86,30 @@ export const EnhancedPeerList: React.FC<Props> = ({
       }
 
       // Check if peer already exists
-      const existingPeer = peers.find(p => p.publicKey === resolvedAddress);
+      const existingPeer = peers.find((p) => p.publicKey === resolvedAddress);
       if (existingPeer) {
         onPeerSelect(resolvedAddress, username);
         setShowAddForm(false);
-        setNewPeerAddress('');
+        setNewPeerAddress("");
         return;
       }
 
       // Add new peer and start chat
       onPeerSelect(resolvedAddress, username);
       setShowAddForm(false);
-      setNewPeerAddress('');
-      
+      setNewPeerAddress("");
     } catch (error) {
-      console.error('Failed to add peer:', error);
+      console.error("Failed to add peer:", error);
     } finally {
       setIsAddingPeer(false);
     }
   };
 
   const getPeerStatus = (peer: Peer) => {
-    if (peer.isOnline) return { color: 'bg-success', text: 'Online' };
-    if (peer.status === 'away') return { color: 'bg-warning', text: 'Away' };
-    if (peer.status === 'busy') return { color: 'bg-error', text: 'Busy' };
-    return { color: 'bg-text-muted', text: 'Offline' };
+    if (peer.isOnline) return { color: "bg-success", text: "Online" };
+    if (peer.status === "away") return { color: "bg-warning", text: "Away" };
+    if (peer.status === "busy") return { color: "bg-error", text: "Busy" };
+    return { color: "bg-text-muted", text: "Offline" };
   };
 
   return (
@@ -157,7 +160,7 @@ export const EnhancedPeerList: React.FC<Props> = ({
           {showAddForm && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
+              animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               className="mt-4 p-3 bg-card-highlight rounded-lg border border-border"
             >
@@ -174,7 +177,7 @@ export const EnhancedPeerList: React.FC<Props> = ({
                     placeholder="@username or wallet address"
                     className="flex-1 px-3 py-2 bg-foreground border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
+                      if (e.key === "Enter") {
                         handleAddPeer();
                       }
                     }}
@@ -186,7 +189,7 @@ export const EnhancedPeerList: React.FC<Props> = ({
                     disabled={!newPeerAddress.trim() || isAddingPeer}
                     className="px-4 py-2 bg-gradient-primary text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isAddingPeer ? 'Adding...' : 'Add'}
+                    {isAddingPeer ? "Adding..." : "Add"}
                   </motion.button>
                 </div>
               </div>
@@ -202,7 +205,9 @@ export const EnhancedPeerList: React.FC<Props> = ({
             {searchQuery ? (
               <div className="space-y-2">
                 <Search className="w-8 h-8 mx-auto text-text-muted/50" />
-                <p className="text-text-muted">No contacts found matching "{searchQuery}"</p>
+                <p className="text-text-muted">
+                  No contacts found matching "{searchQuery}"
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -245,18 +250,20 @@ export const EnhancedPeerList: React.FC<Props> = ({
                       {/* Avatar */}
                       <div className="relative">
                         <div className="w-12 h-12 bg-gradient-secondary rounded-full flex items-center justify-center">
-                          {peer.username?.startsWith('@') ? (
+                          {peer.username?.startsWith("@") ? (
                             <AtSign className="w-6 h-6 text-white" />
                           ) : (
                             <Wallet className="w-6 h-6 text-white" />
                           )}
                         </div>
-                        
+
                         {/* Status indicator */}
-                        <div className={`absolute -bottom-1 -right-1 w-4 h-4 ${status.color} rounded-full border-2 border-foreground`} />
-                        
+                        <div
+                          className={`absolute -bottom-1 -right-1 w-4 h-4 ${status.color} rounded-full border-2 border-foreground`}
+                        />
+
                         {/* SNS verified badge */}
-                        {peer.username?.startsWith('@') && (
+                        {peer.username?.startsWith("@") && (
                           <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
                             <Crown className="w-2.5 h-2.5 text-white" />
                           </div>
@@ -267,17 +274,21 @@ export const EnhancedPeerList: React.FC<Props> = ({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center space-x-2">
                           <p className="font-medium text-text truncate">
-                            {peer.nickname || peer.username || formatDisplayName(peer.publicKey)}
+                            {peer.nickname ||
+                              peer.username ||
+                              formatDisplayName(peer.publicKey)}
                           </p>
-                          {peer.username?.startsWith('@') && (
+                          {peer.username?.startsWith("@") && (
                             <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
                               SNS
                             </span>
                           )}
                         </div>
-                        
+
                         <div className="flex items-center space-x-2 mt-1">
-                          <span className="text-xs text-text-muted">{status.text}</span>
+                          <span className="text-xs text-text-muted">
+                            {status.text}
+                          </span>
                           {peer.messageCount > 0 && (
                             <>
                               <span className="text-xs text-text-muted">•</span>
@@ -305,7 +316,10 @@ export const EnhancedPeerList: React.FC<Props> = ({
       {/* Footer */}
       <div className="p-4 border-t border-border">
         <div className="flex items-center justify-between text-xs text-text-muted">
-          <span>{filteredPeers.length} contact{filteredPeers.length !== 1 ? 's' : ''}</span>
+          <span>
+            {filteredPeers.length} contact
+            {filteredPeers.length !== 1 ? "s" : ""}
+          </span>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-1">
               <div className="w-2 h-2 bg-success rounded-full" />
